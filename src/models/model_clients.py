@@ -1,29 +1,46 @@
-from typing import Optional
-from src.core.config import settings
+import os
+import requests
+from typing import Optional, Dict, Any
+from ..core.config import settings
 
 
-def call_llm(prompt: str, max_tokens: int = 512) -> str:
+class LLMClient:
     """
-    Placeholder LLM client.
-
-    For the Hackathon:
-      - Replace this with calls to NVIDIA / GB10 models
-        exposed via Docker containers or HTTP endpoints.
-
-    For now, just echo a simple deterministic stub so the system runs
-    even without external connectivity.
+    Thin wrapper around a local/remote LLM endpoint.
+    On GB10, you can point MODEL_ENDPOINT_URL to a NVIDIA NIM / DGX Spark model.
     """
-    if settings.MODEL_BACKEND == "local_stub":
-        # Extremely naive: just returns a trimmed version of the prompt.
-        # Enough to keep the pipeline functional.
-        return (
-            "Reasoned summary (stub): based on the provided crash and injury "
-            "details, the injuries appear clinically plausible with some "
-            "caveats that require human review."
-        )
 
-    # Example placeholder for future:
-    # elif settings.MODEL_BACKEND == "nvidia_gb10":
-    #     return call_nvidia_model(prompt, max_tokens=max_tokens)
+    def __init__(self):
+        self.base_url = settings.MODEL_ENDPOINT_URL
+        self.api_key = settings.MODEL_API_KEY
 
-    return "LLM backend not configured."
+    def is_configured(self) -> bool:
+        return bool(self.base_url)
+
+    def generate(self, prompt: str, max_tokens: int = 512) -> Optional[str]:
+        if not self.is_configured():
+            return None
+
+        try:
+            headers = {}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+
+            # Adjust payload according to the model server you use on GB10
+            payload: Dict[str, Any] = {
+                "model": "local-llm",
+                "prompt": prompt,
+                "max_tokens": max_tokens,
+                "temperature": 0.2,
+            }
+            resp = requests.post(self.base_url, headers=headers, json=payload, timeout=30)
+            resp.raise_for_status()
+            data = resp.json()
+            # Adapt this depending on your model's schema
+            return data.get("choices", [{}])[0].get("text", "").strip()
+        except Exception as e:
+            print(f"[LLM ERROR] {e}")
+            return None
+
+
+llm_client = LLMClient()

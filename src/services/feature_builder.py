@@ -1,28 +1,28 @@
-from typing import Dict, Any
-from src.core.schemas import ClaimedInjuries
+from typing import Dict
 
 
-def build_feature_vector(
-    accident_features: Dict[str, Any],
-    dashcam_features: Dict[str, Any],
-    claimed_injuries: ClaimedInjuries,
-) -> Dict[str, Any]:
+def compute_basic_severity(features: Dict) -> float:
     """
-    Combines accident + dashcam + claimed injuries into a single feature dict.
+    Very rough heuristic for severity based on speed, impact, seat position.
     """
-    features: Dict[str, Any] = {}
+    speed = features.get("estimated_speed_kmh", 0.0) or 0.0
+    impact_side = features.get("impact_side", "")
+    seat = features.get("seat_position", "")
 
-    # Merge accident & dashcam
-    features.update(accident_features)
-    features.update({f"dashcam_{k}": v for k, v in dashcam_features.items()})
+    base = min(speed / 2.0, 50.0)  # cap
 
-    # Injuries
-    features["claimed_body_regions"] = claimed_injuries.body_regions
-    features["onset_delay_days"] = claimed_injuries.onset_delay_days or 0
-    features["symptom_description"] = claimed_injuries.symptom_description or ""
-    features["functional_limitations"] = (
-        claimed_injuries.functional_limitations or ""
-    )
-    features["medical_evaluations"] = claimed_injuries.medical_evaluations or ""
+    if impact_side in ["rear", "front"]:
+        base += 10.0
+    if impact_side in ["left", "right"]:
+        base += 15.0  # side impacts often more risky
 
-    return features
+    if seat in ["rear_center", "rear_left", "rear_right"]:
+        base += 5.0  # often less protected or variable seatbelt use
+
+    return max(0.0, min(base, 100.0))
+
+
+def merge_features(parsed: Dict, video_feats: Dict) -> Dict:
+    merged = {**parsed, **video_feats}
+    merged["severity_score_heuristic"] = compute_basic_severity(merged)
+    return merged

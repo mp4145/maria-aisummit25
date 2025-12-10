@@ -1,20 +1,20 @@
-from typing import Dict, Any
-from src.core.schemas import DashcamInfo
+from typing import Dict, Optional
 
 
-def process_dashcam_info(info: DashcamInfo) -> Dict[str, Any]:
+def analyze_dashcam_video(video_path: Optional[str]) -> Dict:
     """
-    MVP: Just pass through structured dashcam-derived attributes.
-
-    Later, this is where you:
-    - Extract frames from dashcam video
-    - Run CV (e.g. object detection, collision severity estimation)
-    - Derive impact side & severity buckets using NVIDIA CV models on GB10.
+    Stub for dashcam analysis. For now, we just return neutral features.
+    Later, you can plug in a CV model (running on GB10) to classify severity.
     """
-    features: Dict[str, Any] = {
-        "has_video": info.has_video,
-        "impact_severity_bucket": info.impact_severity_bucket or "unknown",
-        "relative_impact_side": info.relative_impact_side or "unknown",
-        "dashcam_notes": info.notes or "",
+    if not video_path:
+        return {
+            "video_available": False,
+            "impact_severity_from_video": "unknown",
+        }
+
+    # TODO: implement basic CV if time permits.
+    # e.g., sample frames + classify "low/medium/high impact"
+    return {
+        "video_available": True,
+        "impact_severity_from_video": "unknown",  # placeholder
     }
-    return features

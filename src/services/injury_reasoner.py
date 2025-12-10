@@ -1,125 +1,112 @@
-from typing import Dict, Any, List
-from src.models.model_clients import call_llm
+from typing import Dict, List
+from ..models.model_clients import llm_client
+from ..core.schemas import InjuryPattern, RiskScores
 
 
-def _estimate_base_severity(features: Dict[str, Any]) -> str:
+def heuristic_consistency_score(features: Dict) -> float:
     """
-    Simple rule-of-thumb banding for severity based on speed and impact.
-
-    low_soft_tissue | moderate_soft_tissue | high_severity_risk
+    Simple placeholder: high speed + has injury description + severe impact
+    = higher consistency.
     """
-    speed = float(features.get("speed_mph", 0.0))
-    impact_dir = features.get("impact_direction", "unknown")
-    impact_bucket = features.get("dashcam_impact_severity_bucket", "unknown")
+    speed = features.get("estimated_speed_kmh", 0.0) or 0.0
+    has_injury_desc = features.get("has_injury_description", False)
+    severity = features.get("severity_score_heuristic", 0.0)
 
-    # Very naive rules – you can refine this using real datasets later.
-    if impact_bucket == "high" or speed >= 45:
-        return "high_severity_risk"
-    if impact_bucket == "moderate" or 20 <= speed < 45:
-        return "moderate_soft_tissue"
-    return "low_soft_tissue"
+    score = 0.0
+    if has_injury_desc:
+        score += 30.0
+    score += min(speed / 1.5, 40.0)
+    score += min(severity / 2.0, 30.0)
+
+    return max(0.0, min(score, 100.0))
 
 
-def _rough_consistency_score(features: Dict[str, Any]) -> float:
+def heuristic_fraud_risk(consistency_score: float) -> float:
     """
-    Rough, explainable heuristic that you can refine later.
+    Lower consistency = higher fraud risk.
     """
-    speed = float(features.get("speed_mph", 0.0))
-    onset_delay = int(features.get("onset_delay_days", 0))
-    regions = [r.lower() for r in features.get("claimed_body_regions", [])]
-    impact_direction = features.get("impact_direction", "unknown")
-    occupant_position = features.get("occupant_position", "unknown")
-
-    score = 0.5  # start neutral
-
-    # Speed contribution
-    if speed < 5:
-        score -= 0.15
-    elif speed < 15:
-        score -= 0.05
-    elif 15 <= speed <= 40:
-        score += 0.1
-    else:
-        score += 0.2
-
-    # Delayed onset: 0–3 days plausible, 4–10 days borderline, >10 days questionable
-    if onset_delay <= 3:
-        score += 0.05
-    elif onset_delay <= 10:
-        score += 0.0
-    else:
-        score -= 0.1
-
-    # Simple biomechanical mapping:
-    if impact_direction == "rear" and "neck" in regions:
-        score += 0.1
-    if impact_direction in ("left_side", "right_side"):
-        if occupant_position == "driver" and "left" in " ".join(regions):
-            score += 0.05
-        if occupant_position == "front_passenger" and "right" in " ".join(regions):
-            score += 0.05
-
-    # Clamp to [0, 1]
-    score = max(0.0, min(1.0, score))
-    return round(score, 2)
+    return max(0.0, min(100.0 - consistency_score, 100.0))
 
 
-def reason_about_injuries(features: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Main reasoning function.
+def heuristic_injury_patterns(features: Dict) -> List[InjuryPattern]:
+    impact_side = features.get("impact_side", "")
+    seat = features.get("seat_position", "")
 
-    Uses:
-      - Simple heuristic scoring
-      - LLM call (optional / stub) for natural language reasoning
-    """
-    severity_band = _estimate_base_severity(features)
-    consistency_score = _rough_consistency_score(features)
+    patterns = []
 
-    body_regions = features.get("claimed_body_regions", [])
-    onset_delay = features.get("onset_delay_days", 0)
-    speed = features.get("speed_mph", 0.0)
-    impact_direction = features.get("impact_direction", "unknown")
-    occupant_position = features.get("occupant_position", "unknown")
+    # Very simplified association rules
+    if impact_side == "rear":
+        patterns.append(InjuryPattern(body_region="neck", likelihood=0.85,
+                                      notes="Whiplash is common in rear impacts."))
+        patterns.append(InjuryPattern(body_region="upper back", likelihood=0.7))
+    if impact_side in ["front", "rear"]:
+        patterns.append(InjuryPattern(body_region="shoulders", likelihood=0.65))
+    if impact_side in ["left", "right"]:
+        patterns.append(InjuryPattern(body_region="side torso", likelihood=0.7))
 
-    expected_profile = (
-        f"Likely soft-tissue / whiplash-type injury involving {', '.join(body_regions)}."
-        if severity_band != "high_severity_risk"
-        else "Crash parameters suggest a non-trivial risk of more serious injury; advanced imaging and close follow-up warranted."
+    if not patterns:
+        patterns.append(InjuryPattern(body_region="unspecified soft tissue", likelihood=0.4))
+
+    return patterns
+
+
+def build_llm_prompt(features: Dict) -> str:
+    return f"""
+You are an expert medical-legal accident analyst.
+
+You are given structured accident features and (optional) injury description:
+
+FEATURES:
+{features}
+
+Task:
+1. Briefly assess the consistency between the accident dynamics and the injuries.
+2. Highlight any red flags or mismatches that an insurer or attorney should investigate.
+3. Suggest 3-5 follow-up questions for the patient or claimant.
+
+Respond in plain English, 1-2 short paragraphs, then a numbered list of follow-up questions.
+"""
+
+
+def reason_about_injuries(features: Dict):
+    # Heuristic scores first
+    consistency = heuristic_consistency_score(features)
+    fraud_risk = heuristic_fraud_risk(consistency)
+    severity = features.get("severity_score_heuristic", 0.0)
+    patterns = heuristic_injury_patterns(features)
+
+    narrative = ""
+    followups: List[str] = []
+
+    if llm_client.is_configured():
+        prompt = build_llm_prompt(features)
+        llm_output = llm_client.generate(prompt)
+        if llm_output:
+            narrative = llm_output
+            # simple split to approximate follow-ups
+            parts = llm_output.split("\n")
+            followups = [p.strip("- ").strip() for p in parts if p.strip().startswith((
+                "1.", "2.", "3.", "4.", "5."
+            ))]
+
+    if not narrative:
+        # fallback narrative
+        narrative = (
+            "Based on the reported impact, seating position, and speed, the claimed injuries "
+            "appear moderately consistent with the accident dynamics. However, further clinical "
+            "evaluation and documentation are required to confirm the full extent of injuries."
+        )
+    if not followups:
+        followups = [
+            "Can you describe when you first noticed the pain or symptoms?",
+            "Were you wearing a seatbelt and how was your body positioned at impact?",
+            "Have you had any prior injuries to the same areas?",
+        ]
+
+    risk_scores = RiskScores(
+        consistency_score=round(consistency, 1),
+        severity_score=round(severity, 1),
+        fraud_risk_score=round(fraud_risk, 1),
     )
 
-    risk_flags: List[str] = []
-
-    if speed < 5 and severity_band != "high_severity_risk":
-        risk_flags.append(
-            "Very low apparent speed – consider vehicle damage photos, dashcam, and prior history."
-        )
-
-    if onset_delay > 10:
-        risk_flags.append(
-            "Symptom onset reported >10 days after crash – still possible but requires careful clinical correlation."
-        )
-
-    if impact_direction == "rear" and "neck" not in [r.lower() for r in body_regions]:
-        risk_flags.append(
-            "Rear-end collisions often involve neck complaints; absence may be benign or underreported."
-        )
-
-    # LLM-based explanation stub (later you plug GB10 model here)
-    llm_prompt = (
-        "You are a medico-legal assistant. Given the following crash and injury features, "
-        "explain in a balanced, neutral way whether the reported injuries are consistent "
-        "with the described accident:\n\n"
-        f"{features}\n\n"
-        "Respond in 3–4 sentences, focusing on clinical plausibility, biomechanics, and "
-        "any caveats that require human review."
-    )
-    llm_explanation = call_llm(llm_prompt)
-
-    # For hackathon demo, we mainly need the fields below:
-    return {
-        "consistency_score": consistency_score,
-        "expected_injury_profile": expected_profile,
-        "consistency_explanation": llm_explanation,
-        "severity_band": severity_band,
-        "risk_flags": risk_flags,
-    }
+    return risk_scores, patterns, narrative, followups

@@ -1,13 +1,14 @@
-from pydantic import BaseSettings
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-class Settings(BaseSettings):
-    # You can extend this with NVIDIA/GB10 model endpoints later
-    MODEL_BACKEND: str = "local_stub"  # or "nvidia_gb10"
-    DEBUG: bool = True
+class Settings:
+    PROJECT_NAME: str = "maria-aisumit25"
+    API_V1_PREFIX: str = "/api"
 
-    class Config:
-        env_file = ".env"
-
+    # LLM / model config (adjust on GB10)
+    MODEL_ENDPOINT_URL: str = os.getenv("MODEL_ENDPOINT_URL", "")
+    MODEL_API_KEY: str = os.getenv("MODEL_API_KEY", "")
 
 settings = Settings()

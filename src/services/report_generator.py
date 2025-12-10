@@ -1,45 +1,36 @@
-from typing import Dict, Any
+from typing import Dict, List
+from ..core.schemas import AccidentAnalysisResponse, RiskScores, InjuryPattern
 
 
-def generate_reports(
-    features: Dict[str, Any],
-    reasoning_result: Dict[str, Any],
-) -> Dict[str, str]:
-    """
-    Create two narrative views:
-      - patient_summary
-      - insurer_summary
-    """
-    score = reasoning_result["consistency_score"]
-    severity_band = reasoning_result["severity_band"]
-    expected_profile = reasoning_result["expected_injury_profile"]
+def extract_key_factors(features: Dict, scores: RiskScores) -> List[str]:
+    factors = []
 
-    onset_delay = int(features.get("onset_delay_days", 0))
-    speed = float(features.get("speed_mph", 0.0))
-    impact_direction = features.get("impact_direction", "unknown")
-    occupant_position = features.get("occupant_position", "unknown")
-    body_regions = ", ".join(features.get("claimed_body_regions", []))
+    if features.get("estimated_speed_kmh", 0) >= 40:
+        factors.append("Moderate to high impact speed.")
+    if features.get("impact_side") == "rear":
+        factors.append("Rear-end collision – whiplash-type injuries plausible.")
+    if features.get("has_injury_description"):
+        factors.append("Claimant provided a detailed injury description.")
+    if scores.fraud_risk_score > 60:
+        factors.append("Low accident-to-injury consistency – elevated fraud risk.")
 
-    patient_summary = (
-        f"Based on the crash description (about {speed:.0f} mph, "
-        f"{impact_direction.replace('_', ' ')} impact) and your seat position "
-        f"({occupant_position.replace('_', ' ')}), injuries affecting {body_regions} "
-        f"are considered {severity_band.replace('_', ' ')} from a medical and biomechanical "
-        f"perspective. Your symptoms starting around day {onset_delay} are not unusual for "
-        f"this type of event. This tool does not replace a doctor, but is meant to help "
-        f"organize the information for you and your care team."
+    return factors
+
+
+def build_response(
+    features: Dict,
+    scores: RiskScores,
+    patterns: List[InjuryPattern],
+    narrative: str,
+    followups: List[str],
+) -> AccidentAnalysisResponse:
+    key_factors = extract_key_factors(features, scores)
+
+    return AccidentAnalysisResponse(
+        risk_scores=scores,
+        likely_injuries=patterns,
+        key_factors=key_factors,
+        narrative_summary=narrative,
+        suggested_followups=followups,
+        raw_features={k: str(v) for k, v in features.items()},
     )
-
-    insurer_summary = (
-        f"Crash parameters: approx {speed:.0f} mph, {impact_direction} impact, "
-        f"occupant position {occupant_position}, claimed regions: {body_regions}, "
-        f"onset delay {onset_delay} days. The heuristic consistency score is {score:.2f} "
-        f"with a severity band of '{severity_band}'. Expected profile: {expected_profile} "
-        f"Automated risk flags: {reasoning_result['risk_flags']}. "
-        f"This output is intended as a triage aid, not a final adjudication. "
-    )
-
-    return {
-        "patient_summary": patient_summary,
-        "insurer_summary": insurer_summary,
-    }
