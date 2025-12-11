@@ -1,6 +1,6 @@
 # backend/detection.py
 
-import cv2
+import cv2 
 import numpy as np
 from pathlib import Path
 from typing import Dict, Any
@@ -15,6 +15,9 @@ def _get_net():
         if not _MODEL_PATH.exists():
             raise FileNotFoundError(f"ONNX model not found at: {_MODEL_PATH}")
         _net = cv2.dnn.readNet(str(_MODEL_PATH))
+
+        #_net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        #_net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
     return _net
 
 
@@ -36,9 +39,11 @@ def compute_frame_activity(frame: np.ndarray) -> float:
     elif isinstance(outs, (list, tuple)):
         arrays = [a for a in outs if isinstance(a, np.ndarray)]
     else:
+        print("Activity score:", score)
         return 0.0
 
     if not arrays:
+        print("Activity score:", score)
         return 0.0
 
     # Take the largest array and compute an aggregate magnitude
@@ -50,6 +55,9 @@ def compute_frame_activity(frame: np.ndarray) -> float:
     # Adjust the divisor if scores are too small/large.
     #score = min(score / 5.0, 1.0)
     score = float(np.mean(np.abs(arr)))
-    score = min(score / 20.0, 1.0)  # larger divisor → less saturation
+    #score = min(score / 20.0, 1.0)  # larger divisor → less saturation
+    score = min(raw * 5.0, 1.0)
+
+    print("Activity score:", score)
 
     return score
