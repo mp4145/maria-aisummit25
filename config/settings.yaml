@@ -1,0 +1,4 @@
+app_name: "ClaimCinema"
+detector_model_path: "models/detector/model.onnx"
+claims_root: "data/claims"
+video_extension: ".mp4"

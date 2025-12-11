@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Crash Lens – Visual Intelligence Report</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Crash Lens</h1>
+    <p class="subtitle">
+      Visual intelligence reports for accident claims computed in real time on-device.
+    </p>
+  </header>
+
+  <section id="controls">
+    <div class="control-group">
+      <label for="claimSelect">Select claim</label>
+      <select id="claimSelect"></select>
+    </div>
+    <button id="refreshBtn">Load report</button>
+    <div id="claimInfo"></div>
+  </section>
+
+  <main id="layout">
+    <section id="left-panel" class="panel">
+      <h2>Timeline</h2>
+      <div id="timeline"></div>
+
+      <h3>Evidence Cohesion</h3>
+      <div id="cohesionScore" class="pill pill-neutral"></div>
+      <div id="policeAlignment" class="pill pill-neutral small-pill"></div>
+    </section>
+
+    <section id="center-panel" class="panel">
+      <h2>Motion Signature</h2>
+      <p class="help-text">
+        Risk over time around the impact event, based on object proximity in the video.
+      </p>
+      <canvas id="motionChart"></canvas>
+    </section>
+
+    <section id="right-panel" class="panel">
+      <h2>Evidence Map</h2>
+
+      <div class="box">
+        <h3>Contradiction Map</h3>
+        <ul id="contradictionsList" class="list"></ul>
+      </div>
+
+      <div class="box">
+        <h3>What We Know</h3>
+        <ul id="whatWeKnowList" class="list"></ul>
+      </div>
+
+      <div class="box">
+        <h3>Narrative Drift</h3>
+        <p id="narrativeDrift"></p>
+      </div>
+    </section>
+  </main>
+
+  <section id="bottom-panel" class="panel">
+    <h2>AI Executive Summary</h2>
+    <p id="aiSummary"></p>
+
+    <div id="statementsRow">
+      <div class="box half-box">
+        <h3>Driver Statement</h3>
+        <p id="driverStatement"></p>
+      </div>
+      <div class="box half-box">
+        <h3>Police Summary</h3>
+        <p id="policeSummary"></p>
+      </div>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

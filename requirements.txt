@@ -5,3 +5,9 @@ python-multipart
 requests
 numpy
 pandas
+
+fastapi 
+uvicorn 
+opencv-python-headless 
+pydantic
+ultralytics
