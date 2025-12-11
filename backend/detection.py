@@ -23,8 +23,8 @@ def _get_net():
 
 def compute_frame_activity(frame: np.ndarray) -> float:
     """
-    Runs the ONNX model on a frame and returns a scalar 'activity' score
-    derived from the raw output tensor. Higher means more complex/active scene.
+    Runs the ONNX model on a frame and returns a scalar 'activity' score.
+    Higher means more complex/active scene.
     """
     net = _get_net()
     blob = cv2.dnn.blobFromImage(
@@ -33,31 +33,22 @@ def compute_frame_activity(frame: np.ndarray) -> float:
     net.setInput(blob)
     outs = net.forward()
 
-    # Normalize outs to a list of arrays
+    # Normalize outs to a single ndarray
     if isinstance(outs, np.ndarray):
-        arrays = [outs]
+        arr = outs
     elif isinstance(outs, (list, tuple)):
         arrays = [a for a in outs if isinstance(a, np.ndarray)]
+        if not arrays:
+            print("Activity score: 0.0 (no arrays)")
+            return 0.0
+        arr = max(arrays, key=lambda a: a.size)
     else:
-        print("Activity score:", score)
+        print("Activity score: 0.0 (unexpected outs type)")
         return 0.0
 
-    if not arrays:
-        print("Activity score:", score)
-        return 0.0
-
-    # Take the largest array and compute an aggregate magnitude
-    arr = max(arrays, key=lambda a: a.size)
-    # Reduce to scalar: mean absolute activation
-    score = float(np.mean(np.abs(arr)))
-
-    # Heuristic normalization: squeeze into [0, 1] range
-    # Adjust the divisor if scores are too small/large.
-    #score = min(score / 5.0, 1.0)
-    score = float(np.mean(np.abs(arr)))
-    #score = min(score / 20.0, 1.0)  # larger divisor → less saturation
-    score = min(raw * 5.0, 1.0)
+    # Use standard deviation as an activity proxy
+    std = float(np.std(arr))
+    score = min(std * 10.0, 1.0)  # scale up to make differences visible
 
     print("Activity score:", score)
-
     return score
