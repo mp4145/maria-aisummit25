@@ -1,0 +1,74 @@
+{
+  "crash_000001": {
+    "claim_id": "crash_000001",
+    "video_path": "data/videos/Crash-1500/000001.mp4",
+    "label": "crash",
+    "event_frame_idx": 32,
+    "event_time_sec": 3.2,
+    "startframe": "000285",
+    "youtube_id": "0000",
+    "timing": "Day",
+    "weather": "Normal",
+    "egoinvolve": true
+  },
+  "crash_000002": {
+    "claim_id": "crash_000002",
+    "video_path": "data/videos/Crash-1500/000002.mp4",
+    "label": "crash",
+    "event_frame_idx": 30,
+    "event_time_sec": 3.0,
+    "startframe": "000646",
+    "youtube_id": "0000",
+    "timing": "Day",
+    "weather": "Normal",
+    "egoinvolve": true
+  },
+  "crash_000003": {
+    "claim_id": "crash_000003",
+    "video_path": "data/videos/Crash-1500/000003.mp4",
+    "label": "crash",
+    "event_frame_idx": 31,
+    "event_time_sec": 3.1,
+    "startframe": "000972",
+    "youtube_id": "0000",
+    "timing": "Day",
+    "weather": "Normal",
+    "egoinvolve": true
+  },
+  "normal_000001": {
+    "claim_id": "normal_000001",
+    "video_path": "data/videos/Normal/000001.mp4",
+    "label": "normal",
+    "event_frame_idx": null,
+    "event_time_sec": null,
+    "startframe": null,
+    "youtube_id": null,
+    "timing": null,
+    "weather": null,
+    "egoinvolve": null
+  },
+  "normal_000002": {
+    "claim_id": "normal_000002",
+    "video_path": "data/videos/Normal/000002.mp4",
+    "label": "normal",
+    "event_frame_idx": null,
+    "event_time_sec": null,
+    "startframe": null,
+    "youtube_id": null,
+    "timing": null,
+    "weather": null,
+    "egoinvolve": null
+  },
+  "normal_000003": {
+    "claim_id": "normal_000003",
+    "video_path": "data/videos/Normal/000003.mp4",
+    "label": "normal",
+    "event_frame_idx": null,
+    "event_time_sec": null,
+    "startframe": null,
+    "youtube_id": null,
+    "timing": null,
+    "weather": null,
+    "egoinvolve": null
+  }
+}
